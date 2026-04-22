@@ -4,4 +4,4 @@ plotly
 python-docx
 python-dotenv
 numpy
-google-genai
+requests
