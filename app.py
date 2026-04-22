@@ -4,117 +4,74 @@ import pandas as pd
 import plotly.express as px
 from docx import Document
 from io import BytesIO
-import google.generativeai as genai
 from dotenv import load_dotenv
+
+from google import genai  # ✅ NUEVA LIBRERÍA
 
 # CONFIG
 load_dotenv()
-st.set_page_config(page_title="L'Oréal Master Intelligence 2026 - IPG", layout="wide")
+st.set_page_config(page_title="L'Oréal Intelligence", layout="wide")
 
-# UI STYLE
-st.markdown("""
-<style>
-.footer {
-    position: fixed; left: 0; bottom: 0; width: 100%;
-    background-color: #ffffff; color: #000000;
-    text-align: center; padding: 12px; font-weight: bold;
-    border-top: 3px solid #d32f2f; z-index: 100;
-}
-</style>
-<div class="footer">🚀 L'Oréal Strategic Media Intelligence 2026</div>
-""", unsafe_allow_html=True)
+# API KEY
+api_key = st.sidebar.text_input("Gemini API Key", type="password") or os.getenv("GEMINI_API_KEY")
 
-# SIDEBAR
-st.sidebar.title("⚙️ IPG Control Panel")
+if not api_key:
+    st.error("Falta API Key")
+    st.stop()
 
-api_key_input = st.sidebar.text_input("Gemini API Key:", type="password")
-api_key = api_key_input if api_key_input else os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key)
 
-if api_key:
-    genai.configure(api_key=api_key)
-else:
-    st.sidebar.error("⚠️ API Key requerida.")
-
-# MODELOS ACTUALIZADOS
+# MODELOS ACTUALES (estos sí existen)
 model_choice = st.sidebar.selectbox(
-    "Motor de Inteligencia:",
-    ["Gemini Flash (rápido)", "Gemini Pro (potente)"]
+    "Modelo",
+    ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
 )
 
-def get_model_id(choice):
-    if "Flash" in choice:
-        return "gemini-1.5-flash"  # estable
-    else:
-        return "gemini-2.0-flash"  # reemplazo moderno de Pro
-
-# FUNCIÓN PRINCIPAL
-def generar_auditoria_maestra(cliente, modo):
+# FUNCIÓN IA
+def generar_auditoria(cliente, model_id):
     try:
-        model_id = get_model_id(modo)
-        model = genai.GenerativeModel(model_id)
+        response = client.models.generate_content(
+            model=model_id,
+            contents=f"""
+            Eres un experto en marketing en Colombia.
 
-        prompt = f"""
-Eres un Director Senior de Research en Colombia.
-
-Genera una AUDITORÍA ESTRATÉGICA PROFUNDA para {cliente}:
-
-1. PORTAFOLIO Y MARCAS
-2. INVERSIÓN EN MEDIOS
-3. ECOSISTEMA DE AGENCIAS
-4. COMPETENCIA
-5. SENTIMIENTO SOCIAL
-6. STAKEHOLDERS
-
-Incluye tablas, análisis y conclusiones claras.
-"""
-
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.3,
-                "max_output_tokens": 4096
-            }
+            Haz una auditoría estratégica para {cliente} incluyendo:
+            - mercado
+            - competencia
+            - inversión en medios
+            - insights
+            """,
         )
 
         return response.text
 
     except Exception as e:
-        return f"❌ ERROR: {str(e)}"
+        return f"❌ ERROR REAL: {str(e)}"
 
 # UI
-st.title("💄 Auditoría 360°: L'Oréal Colombia")
+st.title("💄 Auditoría L'Oréal Colombia")
 
-cliente = st.text_input("Marca o división:", "L'Oréal Groupe")
+cliente = st.text_input("Marca:", "L'Oréal Groupe")
 
-if st.button("🚀 Generar Auditoría"):
-    if not api_key:
-        st.error("Falta API Key")
-    else:
-        with st.spinner("Analizando..."):
-            resultado = generar_auditoria_maestra(cliente, model_choice)
-            st.markdown(resultado)
+if st.button("Generar"):
+    with st.spinner("Analizando..."):
+        resultado = generar_auditoria(cliente, model_choice)
+        st.write(resultado)
 
-            # DASHBOARD
-            st.subheader("📊 Market Share")
+        # gráfico ejemplo
+        df = pd.DataFrame({
+            "Marca": ["L'Oréal", "Unilever", "Natura"],
+            "Share": [30, 25, 20]
+        })
 
-            df = pd.DataFrame({
-                "Marca": ["L'Oréal", "Belcorp", "Unilever", "Natura"],
-                "Share": [28, 22, 18, 15]
-            })
+        fig = px.bar(df, x="Marca", y="Share")
+        st.plotly_chart(fig)
 
-            fig = px.bar(df, x="Marca", y="Share")
-            st.plotly_chart(fig, use_container_width=True)
+        # export
+        doc = Document()
+        doc.add_paragraph(resultado)
 
-            # EXPORT WORD
-            doc = Document()
-            doc.add_heading(f"Auditoría {cliente}", 0)
-            doc.add_paragraph(resultado)
+        buffer = BytesIO()
+        doc.save(buffer)
 
-            buffer = BytesIO()
-            doc.save(buffer)
-
-            st.download_button(
-                "📄 Descargar Word",
-                data=buffer.getvalue(),
-                file_name="reporte.docx"
-            )
+        st.download_button("Descargar Word", buffer.getvalue(), "reporte.docx")
