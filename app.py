@@ -2,10 +2,8 @@ import streamlit as st
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
-from pptx.enum.shapes import MSO_SHAPE
 from io import BytesIO
-import pandas as pd
+import requests
 
 # =============================
 # CONFIG
@@ -15,7 +13,14 @@ st.set_page_config(page_title="L'Oréal Colombia Deck", layout="wide")
 st.title("💄 L'Oréal Colombia – Strategic Deck Generator")
 
 # =============================
-# FUNCIÓN CREAR PPT
+# FUNCIÓN DESCARGAR IMAGEN URL
+# =============================
+def cargar_imagen(url):
+    response = requests.get(url)
+    return BytesIO(response.content)
+
+# =============================
+# CREAR PPT
 # =============================
 def crear_ppt_colombia():
 
@@ -24,41 +29,40 @@ def crear_ppt_colombia():
     # =============================
     # SLIDE 1 - PORTADA
     # =============================
-    slide_layout = prs.slide_layouts[0]
-    slide = prs.slides.add_slide(slide_layout)
-
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text = "L'Oréal Colombia"
     slide.placeholders[1].text = "Strategic Competitive Landscape"
 
     # =============================
-    # SLIDE 2 - COMPETIDORES (CON LOGOS)
+    # SLIDE 2 - COMPETIDORES (LOGOS)
     # =============================
-    slide_layout = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(slide_layout)
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
 
     title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(8), Inches(0.5))
     title_tf = title_box.text_frame
     title_tf.text = "MAIN COMPETITORS"
 
     logos = [
-        ("logos/pg.png", 1),
-        ("logos/unilever.png", 2),
-        ("logos/natura.png", 3),
-        ("logos/belcorp.png", 4),
-        ("logos/quala.png", 5),
+        "https://logo.clearbit.com/pg.com",
+        "https://logo.clearbit.com/unilever.com",
+        "https://logo.clearbit.com/natura.com",
+        "https://logo.clearbit.com/belcorp.biz",
+        "https://logo.clearbit.com/quala.com.co"
     ]
 
     left = 1
-    for path, i in logos:
-        slide.shapes.add_picture(path, Inches(left), Inches(1.2), height=Inches(1))
-        left += 1.5
+    for url in logos:
+        try:
+            img = cargar_imagen(url)
+            slide.shapes.add_picture(img, Inches(left), Inches(1.2), width=Inches(1.2))
+            left += 1.5
+        except:
+            continue
 
     # =============================
     # SLIDE 3 - MARCAS LOREAL
     # =============================
-    slide_layout = prs.slide_layouts[1]
-    slide = prs.slides.add_slide(slide_layout)
-
+    slide = prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text = "L'Oréal Brands in Colombia"
 
     tf = slide.placeholders[1].text_frame
@@ -80,20 +84,16 @@ def crear_ppt_colombia():
     p.level = 0
 
     p = tf.add_paragraph()
-    p.text = "Lancôme, Kiehl’s, Yves Saint Laurent Beauty"
+    p.text = "Lancôme, Kiehl’s, YSL Beauty"
     p.level = 1
 
     # =============================
-    # SLIDE 4 - INVERSIÓN (TABLA)
+    # SLIDE 4 - INVERSIÓN
     # =============================
-    slide_layout = prs.slide_layouts[5]
-    slide = prs.slides.add_slide(slide_layout)
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    slide.shapes.title.text = "Media Investment Colombia (USD MM)"
 
-    title = slide.shapes.title
-    title.text = "Media Investment Colombia (Estimated)"
-
-    rows, cols = 5, 4
-    table = slide.shapes.add_table(rows, cols, Inches(1), Inches(2), Inches(8), Inches(3)).table
+    table = slide.shapes.add_table(5, 4, Inches(1), Inches(2), Inches(8), Inches(3)).table
 
     headers = ["Empresa", "2022", "2023", "2024"]
     data = [
@@ -103,8 +103,8 @@ def crear_ppt_colombia():
         ["Natura", "60", "70", "80"]
     ]
 
-    for col in range(cols):
-        table.cell(0, col).text = headers[col]
+    for i, h in enumerate(headers):
+        table.cell(0, i).text = h
 
     for i, row in enumerate(data):
         for j, val in enumerate(row):
@@ -138,27 +138,27 @@ def crear_ppt_colombia():
     # SLIDE 6 - AGENCIAS
     # =============================
     slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = "Agencies & Ecosystem"
+    slide.shapes.title.text = "Agencies"
 
     tf = slide.placeholders[1].text_frame
-    tf.text = "Media Agencies:"
+    tf.text = "Media:"
     p = tf.add_paragraph()
     p.text = "Publicis Groupe (Zenith, Starcom)"
     p.level = 1
 
     p = tf.add_paragraph()
-    p.text = "Creative Agencies:"
+    p.text = "Creative:"
     p.level = 0
 
     p = tf.add_paragraph()
-    p.text = "McCann, Wunderman Thompson"
+    p.text = "McCann, WPP"
     p.level = 1
 
     # =============================
     # SLIDE 7 - STAKEHOLDERS
     # =============================
     slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = "Key Stakeholders"
+    slide.shapes.title.text = "Stakeholders"
 
     tf = slide.placeholders[1].text_frame
     tf.text = "Retail:"
@@ -179,7 +179,7 @@ def crear_ppt_colombia():
     p.level = 0
 
     p = tf.add_paragraph()
-    p.text = "Caracol, RCN, Meta, Google"
+    p.text = "Caracol, RCN, Google, Meta"
     p.level = 1
 
     # =============================
@@ -194,7 +194,7 @@ def crear_ppt_colombia():
 # =============================
 # BOTÓN
 # =============================
-if st.button("🚀 Generar Deck Colombia PRO"):
+if st.button("🚀 Generar Deck PRO Colombia"):
     ppt = crear_ppt_colombia()
 
     st.download_button(
