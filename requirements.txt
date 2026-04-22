@@ -4,4 +4,4 @@ plotly
 python-docx
 python-dotenv
 numpy
-requests
+groq
