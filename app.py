@@ -14,6 +14,7 @@ load_dotenv()
 # Nota: En Streamlit Cloud, usa st.secrets["GOOGLE_API_KEY"]
 api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=api_key)
+
 model = genai.GenerativeModel('gemini-1.5-pro-preview-0409')
 
 # --- FUNCIONES DE APOYO ---
