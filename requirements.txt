@@ -6,3 +6,9 @@ python-dotenv
 numpy
 groq
 python-pptx
+pg.png
+unilever.png
+natura.png
+belcorp.png
+quala.png
+loreal.png
