@@ -6,16 +6,14 @@ import plotly.graph_objects as go
 from docx import Document
 from io import BytesIO
 import numpy as np
+import requests
 from dotenv import load_dotenv
 
-# NUEVA LIBRERÍA (IMPORTANTE)
-from google import genai
-
 # =============================
-# CONFIGURACIÓN
+# CONFIG
 # =============================
 load_dotenv()
-st.set_page_config(page_title="Auditoría 360° IPG - L'Oréal", layout="wide")
+st.set_page_config(page_title="Auditoría 360° L'Oréal - IPG", layout="wide")
 
 st.markdown("""
 <style>
@@ -26,7 +24,7 @@ st.markdown("""
     border-top: 3px solid #004a99;
 }
 </style>
-<div class="footer">🚀 IPG Strategic Intelligence 2026</div>
+<div class="footer">🚀 IPG Strategic Intelligence 2026 | Powered by Perplexity</div>
 """, unsafe_allow_html=True)
 
 # =============================
@@ -34,92 +32,81 @@ st.markdown("""
 # =============================
 st.sidebar.title("⚙️ Control Panel")
 
-api_key = st.sidebar.text_input("Gemini API Key", type="password") or os.getenv("GEMINI_API_KEY")
+api_key = st.sidebar.text_input("Perplexity API Key", type="password") or os.getenv("PPLX_API_KEY")
 
 if not api_key:
-    st.error("⚠️ Debes ingresar tu API Key")
+    st.error("⚠️ Debes ingresar tu API Key de Perplexity")
     st.stop()
 
-# CLIENTE IA
-client = genai.Client(api_key=api_key)
-
 modelo = st.sidebar.selectbox(
-    "Modelo IA",
-    ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
+    "Modelo",
+    ["sonar-small-online", "sonar-medium-online"]
 )
 
 # =============================
-# FUNCIÓN IA
+# FUNCIÓN IA (PERPLEXITY)
 # =============================
-def generar_auditoria(cliente):
-    try:
-        prompt = f"""
-Eres el Director Regional de Estrategia para LATAM en IPG.
+@st.cache_data(show_spinner=False)
+def generar_auditoria(cliente, modelo, api_key):
 
-Construye un INFORME EJECUTIVO estilo DECK para {cliente} (L'Oréal).
+    url = "https://api.perplexity.ai/chat/completions"
 
-OBJETIVO:
-Responder:
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
 
-1. Marcas presentes por mercado
+    prompt = f"""
+Eres un Director Regional de Estrategia en LATAM.
+
+Genera un informe ejecutivo tipo consultora para {cliente}:
+
+1. Marcas de L’Oréal por país
 2. Agencias (medios y creativas)
 3. Competidores
 4. Evolución inversión medios
-5. Data relevante
+5. Data clave
 6. Stakeholders
 
-ESTRUCTURA:
-
-## 1. 🌍 PRESENCIA POR MERCADO
-Tabla: País | Marcas | Segmento
-
-## 2. 🎯 AGENCIAS
-Tabla: Marca | Medios | Creativa | Modelo
-
-## 3. 🥊 COMPETENCIA
-Tabla: Marca | Competidores | Grupo
-
-## 4. 📊 INVERSIÓN MEDIOS
-Análisis últimos años
-
-## 5. 📈 DATA CLAVE
-Tabla: Marca | Posicionamiento | Target | Insight | Canal
-
-## 6. 🤝 STAKEHOLDERS
-Tabla: Tipo | Nombre | Rol
-
-## 7. 🧠 CONCLUSIONES
-- Oportunidades
-- Riesgos
-- Recomendaciones
-
-FORMATO:
-- Estilo presentación
-- Claro, ejecutivo
-- Tablas limpias
+Formato:
+- Tablas claras
+- Datos reales (usa búsqueda web)
+- Nivel ejecutivo
+- Incluye fuentes
 """
 
-        response = client.models.generate_content(
-            model=modelo,
-            contents=prompt
-        )
+    data = {
+        "model": modelo,
+        "messages": [
+            {"role": "system", "content": "Eres un experto en research de mercado y marketing."},
+            {"role": "user", "content": prompt}
+        ]
+    }
 
-        return response.text
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        result = response.json()
+
+        return result["choices"][0]["message"]["content"]
 
     except Exception as e:
         return f"❌ ERROR: {str(e)}"
+
 
 # =============================
 # UI
 # =============================
 st.title("💄 Auditoría 360° L'Oréal LATAM")
+st.subheader("Inteligencia de Mercado con datos reales")
 
 cliente = st.text_input("Cliente:", "L'Oréal Groupe")
 
 if st.button("🚀 Generar Auditoría"):
-    with st.spinner("Generando análisis estratégico..."):
 
-        resultado = generar_auditoria(cliente)
+    with st.spinner("Buscando información real en internet..."):
+
+        resultado = generar_auditoria(cliente, modelo, api_key)
+
         st.markdown(resultado)
 
         st.divider()
@@ -127,7 +114,7 @@ if st.button("🚀 Generar Auditoría"):
         # =============================
         # DASHBOARD
         # =============================
-        st.header("📊 Dashboard")
+        st.header("📊 Dashboard Visual")
 
         col1, col2 = st.columns(2)
 
@@ -148,7 +135,7 @@ if st.button("🚀 Generar Auditoría"):
             st.plotly_chart(fig2, use_container_width=True)
 
         # =============================
-        # GOOGLE TRENDS SIMULADO
+        # TENDENCIAS SIMULADAS
         # =============================
         st.subheader("🔍 Tendencias de Búsqueda")
 
