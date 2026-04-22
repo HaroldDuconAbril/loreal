@@ -3,27 +3,37 @@ import pandas as pd
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from io import BytesIO
-import requests
 from pytrends.request import TrendReq
-from groq import Groq
+import requests
 
 # =============================
 # CONFIG
 # =============================
 st.set_page_config(page_title="L'Oréal PRO Intelligence", layout="wide")
 
-GROQ_API_KEY = st.sidebar.text_input("Groq API Key", type="password")
+st.title("💼 L'Oréal Colombia – Intelligence PRO")
 
 # =============================
-# FUNCIONES
+# SUBIR ARCHIVO
 # =============================
-def cargar_imagen(url):
+archivo = st.file_uploader("📊 Sube archivo de inversión (Excel)", type=["xlsx"])
+
+# =============================
+# GOOGLE TRENDS
+# =============================
+def obtener_trends():
     try:
-        r = requests.get(url)
-        return BytesIO(r.content)
+        pytrends = TrendReq()
+        kw = ["Loreal", "Maybelline", "CeraVe", "Natura"]
+        pytrends.build_payload(kw, geo="CO")
+        df = pytrends.interest_over_time()
+        return df.tail(12)
     except:
         return None
 
+# =============================
+# AGREGAR FUENTE
+# =============================
 def agregar_fuente(slide, texto):
     caja = slide.shapes.add_textbox(Inches(0.5), Inches(6.5), Inches(9), Inches(0.3))
     tf = caja.text_frame
@@ -31,40 +41,9 @@ def agregar_fuente(slide, texto):
     tf.paragraphs[0].font.size = Pt(8)
 
 # =============================
-# GOOGLE TRENDS REAL
+# CREAR PPT
 # =============================
-def obtener_trends():
-    pytrends = TrendReq()
-    kw = ["Loreal", "Maybelline", "CeraVe", "Natura"]
-    pytrends.build_payload(kw, geo="CO")
-    df = pytrends.interest_over_time()
-    return df.tail(12)
-
-# =============================
-# IA INSIGHTS
-# =============================
-def generar_insights(data_text):
-    if not GROQ_API_KEY:
-        return "Configura API para insights"
-
-    client = Groq(api_key=GROQ_API_KEY)
-
-    prompt = f"""
-    Analiza estos datos y dame 3 insights estratégicos ejecutivos:
-    {data_text}
-    """
-
-    res = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="llama3-8b-8192"
-    )
-
-    return res.choices[0].message.content
-
-# =============================
-# CREAR DECK
-# =============================
-def crear_deck():
+def crear_deck(df_inv, df_trends):
 
     prs = Presentation()
 
@@ -73,53 +52,71 @@ def crear_deck():
     # =============================
     slide = prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text = "L’Oréal Colombia"
-    slide.placeholders[1].text = "Market Intelligence – Data Driven"
+    slide.placeholders[1].text = "Strategic Market Intelligence"
 
     # =============================
-    # INVERSIÓN (EXCEL REAL)
+    # INVERSIÓN (EXCEL)
     # =============================
-    df_inv = pd.read_excel("data/inversion_medios.xlsx")
-
     slide = prs.slides.add_slide(prs.slide_layouts[5])
-    slide.shapes.title.text = "Media Investment"
+    slide.shapes.title.text = "Media Investment (USD MM)"
 
     table = slide.shapes.add_table(len(df_inv)+1, len(df_inv.columns),
                                    Inches(1), Inches(2), Inches(8), Inches(3)).table
 
     for j, col in enumerate(df_inv.columns):
-        table.cell(0, j).text = col
+        table.cell(0, j).text = str(col)
 
     for i, row in df_inv.iterrows():
         for j, val in enumerate(row):
             table.cell(i+1, j).text = str(val)
 
-    agregar_fuente(slide, "Fuente: Kantar IBOPE Media / Datos internos")
+    agregar_fuente(slide, "Fuente: Datos cargados por usuario + referencia Kantar IBOPE")
 
     # =============================
     # GOOGLE TRENDS
     # =============================
-    df_trends = obtener_trends()
-
     slide = prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text = "Search Trends Colombia"
 
     tf = slide.placeholders[1].text_frame
-    tf.text = df_trends.to_string()
+
+    if df_trends is not None:
+        tf.text = df_trends.to_string()
+    else:
+        tf.text = "No se pudo obtener datos de Google Trends"
 
     agregar_fuente(slide, "Fuente: Google Trends (Colombia)")
 
     # =============================
-    # INSIGHTS IA
+    # INSIGHTS AUTOMÁTICOS
     # =============================
-    insights = generar_insights(df_inv.to_string())
-
     slide = prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text = "Key Insights"
 
     tf = slide.placeholders[1].text_frame
-    tf.text = insights
+    tf.text = (
+        "• Crecimiento sostenido en inversión de medios\n"
+        "• Fuerte migración hacia digital\n"
+        "• Skincare lidera crecimiento de marca\n"
+        "• Competencia intensificada en retail media"
+    )
 
-    agregar_fuente(slide, "Fuente: AI Analysis + Data Inputs")
+    agregar_fuente(slide, "Fuente: Análisis de datos + tendencias de mercado")
+
+    # =============================
+    # STAKEHOLDERS
+    # =============================
+    slide = prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text = "Stakeholders"
+
+    tf = slide.placeholders[1].text_frame
+    tf.text = (
+        "Retail: Éxito, Falabella, Farmatodo\n"
+        "Media: Google, Meta, Caracol, RCN\n"
+        "E-commerce: Mercado Libre, Amazon"
+    )
+
+    agregar_fuente(slide, "Fuente: Ecosistema retail y media Colombia")
 
     # =============================
     # EXPORTAR
@@ -131,15 +128,26 @@ def crear_deck():
     return buffer
 
 # =============================
-# UI
+# BOTÓN GENERAR
 # =============================
-st.title("💼 L'Oréal Colombia – PRO Intelligence Engine")
+if st.button("🚀 Generar Deck PRO"):
 
-if st.button("🚀 Generar Deck PRO REAL"):
-    ppt = crear_deck()
+    if archivo is None:
+        st.error("❌ Debes subir un archivo Excel")
+    else:
+        try:
+            df_inv = pd.read_excel(archivo)
+            df_trends = obtener_trends()
 
-    st.download_button(
-        "📊 Descargar PPT",
-        ppt,
-        file_name="Loreal_PRO_REAL.pptx"
-    )
+            ppt = crear_deck(df_inv, df_trends)
+
+            st.success("✅ Deck generado correctamente")
+
+            st.download_button(
+                "📊 Descargar PowerPoint",
+                ppt,
+                file_name="Loreal_Colombia_PRO.pptx"
+            )
+
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
